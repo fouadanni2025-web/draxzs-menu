@@ -1,6 +1,6 @@
 -- ============================================
--- DRAXZS PVP MENU V2 - FLUENT INTERFACE
--- COM SPINBOT
+-- DRAXZS PVP MENU V2.3 - FLUENT INTERFACE
+-- COM SPINBOT + SPEED HACK + FPS BOOST + ESP DISTANCE
 -- ============================================
 
 -- ============================================
@@ -35,6 +35,7 @@ local Tabs = {
     Aim = Window:AddTab({ Title = "🎯 Aim Assist", Icon = "crosshair" }),
     ESPTab = Window:AddTab({ Title = "👁️ ESP", Icon = "eye" }),
     Movement = Window:AddTab({ Title = "🌀 Movement", Icon = "move" }),
+    Performance = Window:AddTab({ Title = "⚡ Performance", Icon = "zap" }),
     Settings = Window:AddTab({ Title = "⚙️ Settings", Icon = "settings" }),
 }
 
@@ -46,6 +47,7 @@ local player = game.Players.LocalPlayer
 local camera = game.Workspace.CurrentCamera
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
+local Lighting = game:GetService("Lighting")
 local Mouse = player:GetMouse()
 
 -- Configurações do Aimbot
@@ -74,15 +76,32 @@ local espConfig = {
     teamcheck = false,
     skeleton = false,
     showSelf = false,
+    maxDistance = 500,
 }
 
--- Configurações de Movimento (SPINBOT)
+-- Configurações de Movimento (SPINBOT + SPEED)
 local movementConfig = {
     spinbotEnabled = false,
     spinSpeed = 30,
     spinMode = "Horizontal",
     spinTarget = "HumanoidRootPart",
     randomJitter = false,
+    -- SPEED
+    speedEnabled = false,
+    speedValue = 16,
+    speedMode = "Normal",
+    speedKey = Enum.KeyCode.LeftShift,
+    speedKeyHeld = false,
+}
+
+-- Configurações de FPS Boost
+local fpsConfig = {
+    enabled = false,
+    lowGraphics = true,
+    noEffects = true,
+    noShadows = true,
+    noTextures = false,
+    lowRenderDistance = true,
 }
 
 -- Variáveis de estado
@@ -496,12 +515,19 @@ local function DrawDistance(plr, color)
 end
 
 -- ============================================
--- LOOP PRINCIPAL DO ESP
+-- LOOP PRINCIPAL DO ESP (com distância máxima)
 -- ============================================
 
 RunService.Heartbeat:Connect(function()
     ClearESPObjects()
     if not espConfig.enabled then return end
+
+    local myChar = player.Character
+    local myPos
+    if myChar then
+        local myHrp = myChar:FindFirstChild("HumanoidRootPart")
+        if myHrp then myPos = myHrp.Position end
+    end
 
     local playersToDraw = {}
     if espConfig.showSelf then
@@ -521,6 +547,17 @@ RunService.Heartbeat:Connect(function()
 
         if espConfig.teamcheck and isAlly then
             continue
+        end
+
+        -- Checagem de distância máxima do ESP
+        if not isSelf and myPos then
+            local hrp = plr.Character:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                local dist = (hrp.Position - myPos).Magnitude
+                if dist > espConfig.maxDistance then
+                    continue
+                end
+            end
         end
 
         local minX, maxX, minY, maxY = DrawBox(plr)
@@ -584,12 +621,130 @@ RunService.Heartbeat:Connect(function()
 end)
 
 -- ============================================
+-- SPEED HACK (MOVIMENTO)
+-- ============================================
+
+UserInputService.InputBegan:Connect(function(input, processed)
+    if processed then return end
+    if input.KeyCode == movementConfig.speedKey then
+        movementConfig.speedKeyHeld = true
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input, processed)
+    if processed then return end
+    if input.KeyCode == movementConfig.speedKey then
+        movementConfig.speedKeyHeld = false
+    end
+end)
+
+RunService.Heartbeat:Connect(function()
+    local char = player.Character
+    if not char then return end
+    local humanoid = char:FindFirstChildOfClass("Humanoid")
+    if not humanoid or humanoid.Health <= 0 then return end
+
+    if not movementConfig.speedEnabled then
+        humanoid.WalkSpeed = 16
+        return
+    end
+
+    local applySpeed = false
+    if movementConfig.speedMode == "Normal" then
+        applySpeed = true
+    elseif movementConfig.speedMode == "Shift" then
+        applySpeed = movementConfig.speedKeyHeld
+    elseif movementConfig.speedMode == "Always" then
+        applySpeed = true
+    end
+
+    if applySpeed then
+        humanoid.WalkSpeed = movementConfig.speedValue
+    else
+        humanoid.WalkSpeed = 16
+    end
+end)
+
+-- ============================================
+-- FPS BOOST
+-- ============================================
+
+local function ApplyFPSBoost()
+    local Terrain = workspace:FindFirstChildOfClass("Terrain")
+
+    if fpsConfig.lowGraphics then
+        pcall(function()
+            settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
+            Lighting.GlobalShadows = false
+            Lighting.FogEnd = 100000
+            Lighting.Brightness = 0
+        end)
+    end
+
+    if fpsConfig.noEffects then
+        pcall(function()
+            for _, v in pairs(Lighting:GetChildren()) do
+                if v:IsA("PostEffect") or v:IsA("Atmosphere") or v:IsA("Sky") then
+                    v.Enabled = false
+                end
+            end
+        end)
+    end
+
+    if fpsConfig.noShadows then
+        pcall(function()
+            for _, v in pairs(workspace:GetDescendants()) do
+                if v:IsA("BasePart") then
+                    v.CastShadow = false
+                end
+            end
+        end)
+    end
+
+    if fpsConfig.noTextures then
+        pcall(function()
+            for _, v in pairs(workspace:GetDescendants()) do
+                if v:IsA("Decal") or v:IsA("Texture") then
+                    v.Transparency = 1
+                end
+            end
+        end)
+    end
+
+    if fpsConfig.lowRenderDistance then
+        pcall(function()
+            if Terrain then
+                Terrain.WaterWaveSize = 0
+                Terrain.WaterWaveSpeed = 0
+                Terrain.WaterReflectance = 0
+                Terrain.WaterTransparency = 1
+            end
+            player.CameraMaxZoomDistance = 50
+        end)
+    end
+end
+
+local function RestoreFPSBoost()
+    pcall(function()
+        settings().Rendering.QualityLevel = Enum.QualityLevel.Automatic
+        Lighting.GlobalShadows = true
+        Lighting.Brightness = 2
+    end)
+end
+
+RunService.Heartbeat:Connect(function()
+    if fpsConfig.enabled then
+        ApplyFPSBoost()
+    end
+end)
+
+-- ============================================
 -- 1. WELCOME TAB
 -- ============================================
 
 Tabs.Main:AddParagraph({
     Title = "🔥 Bem-vindo, " .. player.Name .. "!",
-    Content = "Menu PvP definitivo do DRAXZS.\n\n🎯 Aimbot com FOV ajustável\n👁️ ESP completo (Box vermelha, Health lateral, Nome, Distância, Skeleton)\n🌀 Spinbot na aba Movement\n⚙️ Totalmente personalizável\n\nPressione Insert para abrir/fechar."
+    Content = "Menu PvP definitivo do DRAXZS.\n\n🎯 Aimbot com FOV ajustável\n👁️ ESP completo (Box vermelha, Health lateral, Nome, Distância, Skeleton)\n📏 Distância máxima configurável no ESP\n🌀 Spinbot na aba Movement\n⚡ Speed Hack na aba Movement\n🚀 FPS Boost na aba Performance\n⚙️ Totalmente personalizável\n\nPressione Insert para abrir/fechar."
 })
 
 -- ============================================
@@ -796,8 +951,25 @@ Tabs.ESPTab:AddToggle("ESPSelf", {
     end
 })
 
+Tabs.ESPTab:AddParagraph({
+    Title = "📏 Otimização de Distância",
+    Content = "Diminua a distância máxima se o ESP estiver travando o jogo.\nValores baixos (100-300) = melhor performance.\nValores altos (1000-2000) = mostra todo mundo, mas pesa mais."
+})
+
+Tabs.ESPTab:AddSlider("ESPMaxDistance", {
+    Title = "📏 Distância Máxima do ESP",
+    Description = "Só mostra jogadores até essa distância (metros)",
+    Default = 500,
+    Min = 10,
+    Max = 2000,
+    Rounding = 1,
+    Callback = function(value)
+        espConfig.maxDistance = value
+    end
+})
+
 -- ============================================
--- 4. MOVEMENT TAB (SPINBOT)
+-- 4. MOVEMENT TAB (SPINBOT + SPEED)
 -- ============================================
 
 Tabs.Movement:AddParagraph({
@@ -861,12 +1033,161 @@ Tabs.Movement:AddToggle("SpinJitterToggle", {
 })
 
 Tabs.Movement:AddParagraph({
-    Title = "⚠️ Aviso",
+    Title = "⚠️ Aviso (Spinbot)",
     Content = "Spinbot pode te fazer tomar kick em alguns jogos.\nSe o jogo detectar, diminua a velocidade ou desligue.\n\nUse por sua conta e risco."
 })
 
+-- SPEED HACK
+
+Tabs.Movement:AddParagraph({
+    Title = "⚡ Speed Hack",
+    Content = "Aumenta a velocidade de caminhada do seu personagem.\n\n⚠️ Velocidades muito altas podem te fazer tomar kick em jogos com anti-cheat."
+})
+
+Tabs.Movement:AddToggle("SpeedToggle", {
+    Title = "⚡ Speed Hack",
+    Description = "Ativa/Desativa o Speed Hack",
+    Default = false,
+    Callback = function(value)
+        movementConfig.speedEnabled = value
+        Library:Notify({
+            Title = "⚡ Speed Hack",
+            Content = value and "✅ Ativado!" or "❌ Desativado!",
+            Duration = 1.5
+        })
+    end
+})
+
+Tabs.Movement:AddSlider("SpeedSlider", {
+    Title = "🏃 Velocidade (0-100)",
+    Description = "Velocidade de caminhada (0 = parado, 100 = insano)",
+    Default = 16,
+    Min = 0,
+    Max = 100,
+    Rounding = 1,
+    Callback = function(value)
+        movementConfig.speedValue = value
+    end
+})
+
+Tabs.Movement:AddDropdown("SpeedModeDropdown", {
+    Title = "🎯 Modo do Speed",
+    Description = "Normal = sempre ativo, Shift = segurar tecla, Always = sempre",
+    Values = {"Normal", "Shift", "Always"},
+    Default = 1,
+    Callback = function(value)
+        movementConfig.speedMode = value
+    end
+})
+
+local speedBindButton = Tabs.Movement:AddButton({
+    Title = "🔑 Tecla do Speed: " .. tostring(movementConfig.speedKey):gsub("Enum.KeyCode.", ""),
+    Description = "Clique para alterar a tecla do Speed",
+    Callback = function()
+        Library:Notify({
+            Title = "⌨️ Aguardando tecla...",
+            Content = "Pressione uma tecla.",
+            Duration = 2
+        })
+        local input = UserInputService.InputBegan:Wait()
+        if input then
+            local key = input.KeyCode
+            if key ~= Enum.KeyCode.Unknown then
+                movementConfig.speedKey = key
+                speedBindButton:SetTitle("🔑 Tecla do Speed: " .. tostring(key):gsub("Enum.KeyCode.", ""))
+                Library:Notify({
+                    Title = "✅ Tecla alterada!",
+                    Content = "Speed agora usa: " .. tostring(key):gsub("Enum.KeyCode.", ""),
+                    Duration = 2
+                })
+            end
+        end
+    end
+})
+
+Tabs.Movement:AddParagraph({
+    Title = "⚠️ Aviso (Speed)",
+    Content = "Speed Hack pode te fazer tomar kick em alguns jogos.\nSe o jogo detectar, diminua a velocidade ou desligue.\n\nUse por sua conta e risco."
+})
+
 -- ============================================
--- 5. SETTINGS TAB
+-- 5. PERFORMANCE TAB (FPS BOOST)
+-- ============================================
+
+Tabs.Performance:AddParagraph({
+    Title = "🚀 FPS Boost",
+    Content = "Otimiza o jogo para melhorar o FPS, especialmente útil quando o ESP está ativo.\n\n⚠️ Alguns efeitos visuais serão desativados enquanto estiver ligado.\nAo desligar, as configurações voltam ao normal."
+})
+
+Tabs.Performance:AddToggle("FPSBoostToggle", {
+    Title = "⚡ FPS Boost",
+    Description = "Ativa/Desativa o boost de FPS (principal)",
+    Default = false,
+    Callback = function(value)
+        fpsConfig.enabled = value
+        if not value then
+            RestoreFPSBoost()
+        end
+        Library:Notify({
+            Title = "⚡ FPS Boost",
+            Content = value and "✅ Ativado!" or "❌ Desativado!",
+            Duration = 1.5
+        })
+    end
+})
+
+Tabs.Performance:AddToggle("FPSLowGraphics", {
+    Title = "🎨 Baixa Qualidade Gráfica",
+    Description = "Reduz a qualidade dos gráficos ao mínimo",
+    Default = true,
+    Callback = function(value)
+        fpsConfig.lowGraphics = value
+    end
+})
+
+Tabs.Performance:AddToggle("FPSNoEffects", {
+    Title = "✨ Remover Efeitos",
+    Description = "Remove efeitos pós-processamento, atmosfera e céu",
+    Default = true,
+    Callback = function(value)
+        fpsConfig.noEffects = value
+    end
+})
+
+Tabs.Performance:AddToggle("FPSNoShadows", {
+    Title = "🌑 Remover Sombras",
+    Description = "Desativa todas as sombras do mapa",
+    Default = true,
+    Callback = function(value)
+        fpsConfig.noShadows = value
+    end
+})
+
+Tabs.Performance:AddToggle("FPSNoTextures", {
+    Title = "🖼️ Remover Texturas",
+    Description = "Remove texturas e decals (mais FPS, mas feio)",
+    Default = false,
+    Callback = function(value)
+        fpsConfig.noTextures = value
+    end
+})
+
+Tabs.Performance:AddToggle("FPSLowRenderDistance", {
+    Title = "🔭 Reduzir Renderização",
+    Description = "Reduz distância de renderização e qualidade da água",
+    Default = true,
+    Callback = function(value)
+        fpsConfig.lowRenderDistance = value
+    end
+})
+
+Tabs.Performance:AddParagraph({
+    Title = "💡 Dicas",
+    Content = "Se ainda estiver travando com ESP ativo:\n\n1. Diminua a 'Distância Máxima do ESP' na aba ESP (200-300m)\n2. Desative o Skeleton ESP (é o mais pesado)\n3. Desative o Health Bar\n4. Mantenha só Box + Names\n5. Ative FPS Boost com Low Graphics + No Shadows + No Effects"
+})
+
+-- ============================================
+-- 6. SETTINGS TAB
 -- ============================================
 
 Tabs.Settings:AddButton({
@@ -897,7 +1218,7 @@ Tabs.Settings:AddButton({
 
 Tabs.Settings:AddParagraph({
     Title = "⚙️ Informações",
-    Content = "DRAXZS PVP MENU v2.1\n\nDesenvolvido por DRAXZS\nMenu baseado na Fluent UI\n\n🎯 Aimbot com FOV ajustável\n👁️ ESP completo\n🌀 Spinbot na aba Movement\n⚡ Otimizado para PvP"
+    Content = "DRAXZS PVP MENU v2.3\n\nDesenvolvido por DRAXZS\nMenu baseado na Fluent UI\n\n🎯 Aimbot com FOV ajustável\n👁️ ESP completo + distância máxima\n🌀 Spinbot na aba Movement\n⚡ Speed Hack na aba Movement\n🚀 FPS Boost na aba Performance\n⚡ Otimizado para PvP"
 })
 
 Tabs.Settings:AddButton({
@@ -941,15 +1262,18 @@ end)
 -- ============================================
 
 Library:Notify({
-    Title = "⚡ DRAXZS PVP MENU V2.1 ⚡",
+    Title = "⚡ DRAXZS PVP MENU V2.3 ⚡",
     Content = "Carregado com sucesso!\nPressione Insert para abrir.",
     Duration = 4
 })
 
 print("====================================")
-print("⚡ DRAXZS PVP MENU V2.1 (SPINBOT) ⚡")
+print("⚡ DRAXZS PVP MENU V2.3 ⚡")
 print("📌 Insert - Abrir/Fechar menu")
 print("📌 Aimbot com FOV ajustável")
 print("📌 Box vermelha | Health bar lateral")
+print("📌 ESP com distância máxima configurável")
 print("📌 Spinbot na aba Movement")
+print("📌 Speed Hack na aba Movement")
+print("📌 FPS Boost na aba Performance")
 print("====================================")
