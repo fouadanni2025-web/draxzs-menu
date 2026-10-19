@@ -1,6 +1,6 @@
 -- ============================================
--- DRAXZS PVP MENU V2.3 - FLUENT INTERFACE
--- COM SPINBOT + SPEED HACK + FPS BOOST + ESP DISTANCE
+-- DRAXZS PVP MENU V2.5 - FLUENT INTERFACE
+-- AIMBOT + ESP + SPINBOT + SPEED + FLY + FPS BOOST
 -- ============================================
 
 -- ============================================
@@ -54,8 +54,6 @@ local Mouse = player:GetMouse()
 local aimbotConfig = {
     enabled = false,
     holdMode = true,
-    holdKey = Enum.KeyCode.ButtonR2,
-    toggleKey = Enum.KeyCode.F,
     fov = 120,
     smoothness = 0.35,
     teamCheck = false,
@@ -86,12 +84,18 @@ local movementConfig = {
     spinMode = "Horizontal",
     spinTarget = "HumanoidRootPart",
     randomJitter = false,
-    -- SPEED
     speedEnabled = false,
     speedValue = 16,
     speedMode = "Normal",
     speedKey = Enum.KeyCode.LeftShift,
     speedKeyHeld = false,
+}
+
+-- Configurações de Fly (NOVO)
+local flyConfig = {
+    enabled = false,
+    speed = 60,
+    holdKey = Enum.KeyCode.G,
 }
 
 -- Configurações de FPS Boost
@@ -164,13 +168,8 @@ local function GetClosestTarget()
         local direction = (targetPos - myPos).unit
         local angle = math.acos(math.clamp(myLook:Dot(direction), -1, 1))
 
-        if angle > fovRad then
-            continue
-        end
-
-        if aimbotConfig.wallCheck and not IsVisible(targetPart) then
-            continue
-        end
+        if angle > fovRad then continue end
+        if aimbotConfig.wallCheck and not IsVisible(targetPart) then continue end
 
         local dist = (targetPos - myPos).Magnitude
         local score = dist + angle * 10
@@ -191,7 +190,6 @@ end
 
 local function AimAtTarget(target)
     if not target or not target.Part then return end
-
     local targetPos = target.Position
 
     if aimbotConfig.blatantMode then
@@ -205,8 +203,7 @@ local function AimAtTarget(target)
 
     local currentCF = camera.CFrame
     local targetCF = CFrame.new(currentCF.Position, targetPos)
-    local newCF = currentCF:lerp(targetCF, smooth)
-    camera.CFrame = newCF
+    camera.CFrame = currentCF:lerp(targetCF, smooth)
 end
 
 -- ============================================
@@ -245,9 +242,7 @@ RunService.RenderStepped:Connect(function()
     end
     if aimActive then
         local target = GetClosestTarget()
-        if target then
-            AimAtTarget(target)
-        end
+        if target then AimAtTarget(target) end
     end
 end)
 
@@ -265,12 +260,10 @@ local FOVFrame = Instance.new("Frame")
 FOVFrame.Size = UDim2.new(0, 1, 0, 1)
 FOVFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
 FOVFrame.BackgroundTransparency = 1
-FOVFrame.BorderSizePixel = 0
 FOVFrame.Parent = FOVGui
 
 local FOVCircle = Instance.new("Frame")
 FOVCircle.BackgroundTransparency = 1
-FOVCircle.BorderSizePixel = 0
 FOVCircle.Parent = FOVFrame
 
 local CircleCorner = Instance.new("UICorner")
@@ -288,7 +281,6 @@ Dot.Size = UDim2.new(0, 4, 0, 4)
 Dot.Position = UDim2.new(0.5, -2, 0.5, -2)
 Dot.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
 Dot.BackgroundTransparency = 0.3
-Dot.BorderSizePixel = 0
 Dot.Parent = FOVFrame
 
 local DotCorner = Instance.new("UICorner")
@@ -313,17 +305,13 @@ UpdateFOVCircle()
 
 local function WorldToScreen(worldPos)
     local screenPos, onScreen = camera:WorldToViewportPoint(worldPos)
-    if onScreen then
-        return Vector2.new(screenPos.X, screenPos.Y)
-    end
+    if onScreen then return Vector2.new(screenPos.X, screenPos.Y) end
     return nil
 end
 
 local function ClearESPObjects()
     for _, obj in pairs(drawingObjects) do
-        if obj and obj.Remove then
-            obj:Remove()
-        end
+        if obj and obj.Remove then obj:Remove() end
     end
     drawingObjects = {}
 end
@@ -384,34 +372,31 @@ local function DrawBox(plr)
     local minX, maxX, minY, maxY = math.huge, -math.huge, math.huge, -math.huge
     for _, part in pairs(char:GetChildren()) do
         if part:IsA("BasePart") then
-            local pos = WorldToScreen(part.Position)
-            if pos then
-                local size = part.Size
-                local corners = {
-                    Vector3.new(-size.X/2, -size.Y/2, -size.Z/2),
-                    Vector3.new( size.X/2, -size.Y/2, -size.Z/2),
-                    Vector3.new(-size.X/2,  size.Y/2, -size.Z/2),
-                    Vector3.new( size.X/2,  size.Y/2, -size.Z/2),
-                    Vector3.new(-size.X/2, -size.Y/2,  size.Z/2),
-                    Vector3.new( size.X/2, -size.Y/2,  size.Z/2),
-                    Vector3.new(-size.X/2,  size.Y/2,  size.Z/2),
-                    Vector3.new( size.X/2,  size.Y/2,  size.Z/2),
-                }
-                for _, offset in pairs(corners) do
-                    local worldPos = part.CFrame:PointToWorldSpace(offset)
-                    local screenPos = WorldToScreen(worldPos)
-                    if screenPos then
-                        minX = math.min(minX, screenPos.X)
-                        maxX = math.max(maxX, screenPos.X)
-                        minY = math.min(minY, screenPos.Y)
-                        maxY = math.max(maxY, screenPos.Y)
-                    end
+            local size = part.Size
+            local corners = {
+                Vector3.new(-size.X/2, -size.Y/2, -size.Z/2),
+                Vector3.new( size.X/2, -size.Y/2, -size.Z/2),
+                Vector3.new(-size.X/2,  size.Y/2, -size.Z/2),
+                Vector3.new( size.X/2,  size.Y/2, -size.Z/2),
+                Vector3.new(-size.X/2, -size.Y/2,  size.Z/2),
+                Vector3.new( size.X/2, -size.Y/2,  size.Z/2),
+                Vector3.new(-size.X/2,  size.Y/2,  size.Z/2),
+                Vector3.new( size.X/2,  size.Y/2,  size.Z/2),
+            }
+            for _, offset in pairs(corners) do
+                local worldPos = part.CFrame:PointToWorldSpace(offset)
+                local screenPos = WorldToScreen(worldPos)
+                if screenPos then
+                    minX = math.min(minX, screenPos.X)
+                    maxX = math.max(maxX, screenPos.X)
+                    minY = math.min(minY, screenPos.Y)
+                    maxY = math.max(maxY, screenPos.Y)
                 end
             end
         end
     end
 
-    if minX ~= math.huge and maxX ~= -math.huge and minY ~= math.huge and maxY ~= -math.huge then
+    if minX ~= math.huge and maxX ~= -math.huge then
         local color = Color3.fromRGB(255, 0, 0)
         local lines = {
             {Vector2.new(minX, minY), Vector2.new(maxX, minY)},
@@ -435,7 +420,6 @@ end
 
 local function DrawHealthBar(plr, color, minX, maxX, minY, maxY)
     if not minX or not maxX or not minY or not maxY then return end
-
     local char = plr.Character
     if not char then return end
     local humanoid = char:FindFirstChild("Humanoid")
@@ -444,7 +428,6 @@ local function DrawHealthBar(plr, color, minX, maxX, minY, maxY)
     local healthPercent = humanoid.Health / humanoid.MaxHealth
     local barWidth = 6
     local barHeight = maxY - minY
-
     local x = maxX + 8
     local y = minY
 
@@ -456,13 +439,12 @@ local function DrawHealthBar(plr, color, minX, maxX, minY, maxY)
     bg.Visible = true
     table.insert(drawingObjects, bg)
 
-    local healthColor = color or Color3.fromRGB(0, 255, 0)
     local healthLine = Drawing.new("Line")
     local fillHeight = barHeight * healthPercent
     healthLine.From = Vector2.new(x, y + barHeight - fillHeight)
     healthLine.To = Vector2.new(x, y + barHeight)
     healthLine.Thickness = barWidth
-    healthLine.Color = healthColor
+    healthLine.Color = color or Color3.fromRGB(0, 255, 0)
     healthLine.Visible = true
     table.insert(drawingObjects, healthLine)
 end
@@ -472,7 +454,6 @@ local function DrawName(plr, color)
     if not char then return end
     local humanoid = char:FindFirstChild("Humanoid")
     if not humanoid or humanoid.Health <= 0 then return end
-
     local head = char:FindFirstChild("Head")
     if not head then return end
     local headPos = WorldToScreen(head.Position)
@@ -494,7 +475,6 @@ local function DrawDistance(plr, color)
     if not char then return end
     local humanoid = char:FindFirstChild("Humanoid")
     if not humanoid or humanoid.Health <= 0 then return end
-
     local hrp = char:FindFirstChild("HumanoidRootPart")
     if not hrp then return end
     local head = char:FindFirstChild("Head")
@@ -515,7 +495,7 @@ local function DrawDistance(plr, color)
 end
 
 -- ============================================
--- LOOP PRINCIPAL DO ESP (com distância máxima)
+-- LOOP PRINCIPAL DO ESP
 -- ============================================
 
 RunService.Heartbeat:Connect(function()
@@ -530,13 +510,9 @@ RunService.Heartbeat:Connect(function()
     end
 
     local playersToDraw = {}
-    if espConfig.showSelf then
-        table.insert(playersToDraw, player)
-    end
+    if espConfig.showSelf then table.insert(playersToDraw, player) end
     for _, plr in pairs(game.Players:GetPlayers()) do
-        if plr ~= player then
-            table.insert(playersToDraw, plr)
-        end
+        if plr ~= player then table.insert(playersToDraw, plr) end
     end
 
     for _, plr in pairs(playersToDraw) do
@@ -544,19 +520,13 @@ RunService.Heartbeat:Connect(function()
 
         local isSelf = (plr == player)
         local isAlly = (not isSelf and plr.Team == player.Team)
+        if espConfig.teamcheck and isAlly then continue end
 
-        if espConfig.teamcheck and isAlly then
-            continue
-        end
-
-        -- Checagem de distância máxima do ESP
         if not isSelf and myPos then
             local hrp = plr.Character:FindFirstChild("HumanoidRootPart")
             if hrp then
                 local dist = (hrp.Position - myPos).Magnitude
-                if dist > espConfig.maxDistance then
-                    continue
-                end
+                if dist > espConfig.maxDistance then continue end
             end
         end
 
@@ -565,18 +535,9 @@ RunService.Heartbeat:Connect(function()
         if espConfig.healthbars and minX then
             DrawHealthBar(plr, Color3.fromRGB(0, 255, 0), minX, maxX, minY, maxY)
         end
-
-        if espConfig.names then
-            DrawName(plr, Color3.fromRGB(255, 255, 255))
-        end
-
-        if espConfig.distance then
-            DrawDistance(plr, Color3.fromRGB(200, 200, 200))
-        end
-
-        if espConfig.skeleton then
-            DrawSkeleton(plr, Color3.fromRGB(255, 255, 255))
-        end
+        if espConfig.names then DrawName(plr, Color3.fromRGB(255, 255, 255)) end
+        if espConfig.distance then DrawDistance(plr, Color3.fromRGB(200, 200, 200)) end
+        if espConfig.skeleton then DrawSkeleton(plr, Color3.fromRGB(255, 255, 255)) end
     end
 end)
 
@@ -586,18 +547,14 @@ end)
 
 RunService.Heartbeat:Connect(function()
     if not movementConfig.spinbotEnabled then return end
-
     local char = player.Character
     if not char then return end
-
     local hrp = char:FindFirstChild(movementConfig.spinTarget)
     if not hrp then return end
-
     local humanoid = char:FindFirstChildOfClass("Humanoid")
     if not humanoid or humanoid.Health <= 0 then return end
 
     local speed = math.rad(movementConfig.spinSpeed * 0.6)
-
     if movementConfig.spinMode == "Horizontal" then
         hrp.CFrame = hrp.CFrame * CFrame.Angles(0, speed, 0)
     elseif movementConfig.spinMode == "Vertical" then
@@ -612,9 +569,7 @@ RunService.Heartbeat:Connect(function()
 
     if movementConfig.randomJitter then
         local jitter = Vector3.new(
-            (math.random() - 0.5) * 0.5,
-            0,
-            (math.random() - 0.5) * 0.5
+            (math.random() - 0.5) * 0.5, 0, (math.random() - 0.5) * 0.5
         )
         hrp.CFrame = hrp.CFrame + jitter
     end
@@ -666,6 +621,33 @@ RunService.Heartbeat:Connect(function()
 end)
 
 -- ============================================
+-- FLY (VOAR)
+-- ============================================
+
+RunService.RenderStepped:Connect(function(dt)
+    if not flyConfig.enabled then return end
+    local char = player.Character
+    if not char then return end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+
+    hrp.Velocity = Vector3.new(0, 0, 0)
+    local dir = Vector3.new(0, 0, 0)
+    local cam = workspace.CurrentCamera
+
+    if UserInputService:IsKeyDown(Enum.KeyCode.W) then dir = dir + cam.CFrame.LookVector end
+    if UserInputService:IsKeyDown(Enum.KeyCode.S) then dir = dir - cam.CFrame.LookVector end
+    if UserInputService:IsKeyDown(Enum.KeyCode.A) then dir = dir - cam.CFrame.RightVector end
+    if UserInputService:IsKeyDown(Enum.KeyCode.D) then dir = dir + cam.CFrame.RightVector end
+    if UserInputService:IsKeyDown(Enum.KeyCode.Space) then dir = dir + Vector3.new(0, 1, 0) end
+    if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then dir = dir - Vector3.new(0, 1, 0) end
+
+    if dir.Magnitude > 0 then
+        hrp.CFrame = hrp.CFrame + dir.Unit * flyConfig.speed * dt
+    end
+end)
+
+-- ============================================
 -- FPS BOOST
 -- ============================================
 
@@ -694,9 +676,7 @@ local function ApplyFPSBoost()
     if fpsConfig.noShadows then
         pcall(function()
             for _, v in pairs(workspace:GetDescendants()) do
-                if v:IsA("BasePart") then
-                    v.CastShadow = false
-                end
+                if v:IsA("BasePart") then v.CastShadow = false end
             end
         end)
     end
@@ -704,9 +684,7 @@ local function ApplyFPSBoost()
     if fpsConfig.noTextures then
         pcall(function()
             for _, v in pairs(workspace:GetDescendants()) do
-                if v:IsA("Decal") or v:IsA("Texture") then
-                    v.Transparency = 1
-                end
+                if v:IsA("Decal") or v:IsA("Texture") then v.Transparency = 1 end
             end
         end)
     end
@@ -733,9 +711,7 @@ local function RestoreFPSBoost()
 end
 
 RunService.Heartbeat:Connect(function()
-    if fpsConfig.enabled then
-        ApplyFPSBoost()
-    end
+    if fpsConfig.enabled then ApplyFPSBoost() end
 end)
 
 -- ============================================
@@ -744,7 +720,7 @@ end)
 
 Tabs.Main:AddParagraph({
     Title = "🔥 Bem-vindo, " .. player.Name .. "!",
-    Content = "Menu PvP definitivo do DRAXZS.\n\n🎯 Aimbot com FOV ajustável\n👁️ ESP completo (Box vermelha, Health lateral, Nome, Distância, Skeleton)\n📏 Distância máxima configurável no ESP\n🌀 Spinbot na aba Movement\n⚡ Speed Hack na aba Movement\n🚀 FPS Boost na aba Performance\n⚙️ Totalmente personalizável\n\nPressione Insert para abrir/fechar."
+    Content = "Menu PvP definitivo do DRAXZS.\n\n🎯 Aimbot com FOV ajustável\n👁️ ESP completo + distância máxima\n🌀 Spinbot\n⚡ Speed Hack\n✈️ Fly (NOVO)\n🚀 FPS Boost\n⚙️ Totalmente personalizável\n\nPressione Insert para abrir/fechar."
 })
 
 -- ============================================
@@ -757,11 +733,7 @@ Tabs.Aim:AddToggle("AimbotToggle", {
     Default = false,
     Callback = function(value)
         aimbotConfig.enabled = value
-        Library:Notify({
-            Title = "🎯 Aimbot",
-            Content = value and "✅ Ativado!" or "❌ Desativado!",
-            Duration = 1.5
-        })
+        Library:Notify({ Title = "🎯 Aimbot", Content = value and "✅ Ativado!" or "❌ Desativado!", Duration = 1.5 })
     end
 })
 
@@ -769,22 +741,14 @@ local bindButton = Tabs.Aim:AddButton({
     Title = "🔑 Tecla atual: " .. tostring(aimbotConfig.aimKey):gsub("Enum.KeyCode.", ""),
     Description = "Clique para alterar a tecla do aimbot",
     Callback = function()
-        Library:Notify({
-            Title = "⌨️ Aguardando tecla...",
-            Content = "Pressione uma tecla.",
-            Duration = 2
-        })
+        Library:Notify({ Title = "⌨️ Aguardando tecla...", Content = "Pressione uma tecla.", Duration = 2 })
         local input = UserInputService.InputBegan:Wait()
         if input then
             local key = input.KeyCode
             if key ~= Enum.KeyCode.Unknown then
                 aimbotConfig.aimKey = key
                 bindButton:SetTitle("🔑 Tecla atual: " .. tostring(key):gsub("Enum.KeyCode.", ""))
-                Library:Notify({
-                    Title = "✅ Tecla alterada!",
-                    Content = "Aimbot agora ativa com: " .. tostring(key):gsub("Enum.KeyCode.", ""),
-                    Duration = 2
-                })
+                Library:Notify({ Title = "✅ Tecla alterada!", Content = "Aimbot agora ativa com: " .. tostring(key):gsub("Enum.KeyCode.", ""), Duration = 2 })
             end
         end
     end
@@ -795,34 +759,21 @@ Tabs.Aim:AddDropdown("AimMode", {
     Description = "Hold = segurar, Toggle = clicar",
     Values = {"Hold", "Toggle"},
     Default = 1,
-    Callback = function(value)
-        aimbotConfig.holdMode = (value == "Hold")
-    end
+    Callback = function(value) aimbotConfig.holdMode = (value == "Hold") end
 })
 
 Tabs.Aim:AddSlider("FOVSlider", {
     Title = "🎯 FOV (Campo de Visão)",
     Description = "Ângulo de busca (30° a 360°)",
-    Default = 120,
-    Min = 30,
-    Max = 360,
-    Rounding = 1,
-    Callback = function(value)
-        aimbotConfig.fov = value
-        UpdateFOVCircle()
-    end
+    Default = 120, Min = 30, Max = 360, Rounding = 1,
+    Callback = function(value) aimbotConfig.fov = value; UpdateFOVCircle() end
 })
 
 Tabs.Aim:AddSlider("SmoothnessSlider", {
     Title = "🔄 Suavidade (Smoothness)",
     Description = "0 = instantâneo, 100 = muito suave",
-    Default = 35,
-    Min = 0,
-    Max = 100,
-    Rounding = 1,
-    Callback = function(value)
-        aimbotConfig.smoothness = math.max(0.01, value / 100)
-    end
+    Default = 35, Min = 0, Max = 100, Rounding = 1,
+    Callback = function(value) aimbotConfig.smoothness = math.max(0.01, value / 100) end
 })
 
 Tabs.Aim:AddDropdown("HitboxDropdown", {
@@ -830,46 +781,35 @@ Tabs.Aim:AddDropdown("HitboxDropdown", {
     Description = "Parte do corpo",
     Values = {"Cabeça", "Peito", "Root"},
     Default = 1,
-    Callback = function(value)
-        aimbotConfig.hitbox = value
-    end
+    Callback = function(value) aimbotConfig.hitbox = value end
 })
 
 Tabs.Aim:AddToggle("TeamCheckAim", {
     Title = "👥 Team Check (Aimbot)",
     Description = "Ignora membros do seu time",
     Default = false,
-    Callback = function(value)
-        aimbotConfig.teamCheck = value
-    end
+    Callback = function(value) aimbotConfig.teamCheck = value end
 })
 
 Tabs.Aim:AddToggle("WallCheckAim", {
     Title = "🧱 Wall Check",
     Description = "Só mira em alvos visíveis",
     Default = false,
-    Callback = function(value)
-        aimbotConfig.wallCheck = value
-    end
+    Callback = function(value) aimbotConfig.wallCheck = value end
 })
 
 Tabs.Aim:AddToggle("BlatantMode", {
     Title = "💥 Blatant Mode",
     Description = "Mira instantânea (sem suavidade)",
     Default = false,
-    Callback = function(value)
-        aimbotConfig.blatantMode = value
-    end
+    Callback = function(value) aimbotConfig.blatantMode = value end
 })
 
 Tabs.Aim:AddToggle("ShowFOV", {
     Title = "👁️ Mostrar FOV",
     Description = "Mostra o círculo do FOV na tela",
     Default = false,
-    Callback = function(value)
-        aimbotConfig.showFOV = value
-        UpdateFOVCircle()
-    end
+    Callback = function(value) aimbotConfig.showFOV = value; UpdateFOVCircle() end
 })
 
 -- ============================================
@@ -882,9 +822,7 @@ Tabs.ESPTab:AddToggle("ESPGlobal", {
     Default = false,
     Callback = function(value)
         espConfig.enabled = value
-        if not value then
-            ClearESPObjects()
-        end
+        if not value then ClearESPObjects() end
     end
 })
 
@@ -892,89 +830,70 @@ Tabs.ESPTab:AddToggle("ESPBoxes", {
     Title = "📦 Box ESP",
     Description = "Caixa vermelha ao redor dos jogadores",
     Default = false,
-    Callback = function(value)
-        espConfig.boxes = value
-    end
+    Callback = function(value) espConfig.boxes = value end
 })
 
 Tabs.ESPTab:AddToggle("ESPHealthBar", {
     Title = "❤️ Health Bar (Lateral)",
-    Description = "Barra de vida vertical ao lado do boneco (na altura dele)",
+    Description = "Barra de vida vertical ao lado do boneco",
     Default = false,
-    Callback = function(value)
-        espConfig.healthbars = value
-    end
+    Callback = function(value) espConfig.healthbars = value end
 })
 
 Tabs.ESPTab:AddToggle("ESPNames", {
     Title = "📝 Player Names",
     Description = "Mostra o nome dos jogadores",
     Default = false,
-    Callback = function(value)
-        espConfig.names = value
-    end
+    Callback = function(value) espConfig.names = value end
 })
 
 Tabs.ESPTab:AddToggle("ESPDistance", {
     Title = "📏 Distance",
     Description = "Mostra a distância até o jogador",
     Default = false,
-    Callback = function(value)
-        espConfig.distance = value
-    end
+    Callback = function(value) espConfig.distance = value end
 })
 
 Tabs.ESPTab:AddToggle("ESPTeamCheck", {
     Title = "👥 Team Check (ESP)",
-    Description = "Ignora aliados (exceto se 'Mostrar em si' estiver ativo)",
+    Description = "Ignora aliados",
     Default = false,
-    Callback = function(value)
-        espConfig.teamcheck = value
-    end
+    Callback = function(value) espConfig.teamcheck = value end
 })
 
 Tabs.ESPTab:AddToggle("ESPSkeleton", {
     Title = "🦴 Skeleton ESP",
     Description = "Desenha o esqueleto dos jogadores",
     Default = false,
-    Callback = function(value)
-        espConfig.skeleton = value
-    end
+    Callback = function(value) espConfig.skeleton = value end
 })
 
 Tabs.ESPTab:AddToggle("ESPSelf", {
     Title = "👤 Mostrar em si mesmo",
-    Description = "Ativa o ESP também no seu próprio personagem",
+    Description = "Ativa o ESP no seu próprio personagem",
     Default = false,
-    Callback = function(value)
-        espConfig.showSelf = value
-    end
+    Callback = function(value) espConfig.showSelf = value end
 })
 
 Tabs.ESPTab:AddParagraph({
     Title = "📏 Otimização de Distância",
-    Content = "Diminua a distância máxima se o ESP estiver travando o jogo.\nValores baixos (100-300) = melhor performance.\nValores altos (1000-2000) = mostra todo mundo, mas pesa mais."
+    Content = "Diminua se estiver travando.\n100-300 = leve\n1000-2000 = pesado"
 })
 
 Tabs.ESPTab:AddSlider("ESPMaxDistance", {
     Title = "📏 Distância Máxima do ESP",
-    Description = "Só mostra jogadores até essa distância (metros)",
-    Default = 500,
-    Min = 10,
-    Max = 2000,
-    Rounding = 1,
-    Callback = function(value)
-        espConfig.maxDistance = value
-    end
+    Description = "Só mostra jogadores até essa distância",
+    Default = 500, Min = 10, Max = 2000, Rounding = 1,
+    Callback = function(value) espConfig.maxDistance = value end
 })
 
 -- ============================================
--- 4. MOVEMENT TAB (SPINBOT + SPEED)
+-- 4. MOVEMENT TAB
 -- ============================================
 
 Tabs.Movement:AddParagraph({
     Title = "🌀 Spinbot",
-    Content = "Gira seu personagem em alta velocidade para dificultar a mira dos inimigos.\n\n⚠️ Velocidades muito altas podem te fazer tomar kick em jogos com anti-cheat."
+    Content = "Gira seu personagem para dificultar a mira."
 })
 
 Tabs.Movement:AddToggle("SpinbotToggle", {
@@ -983,65 +902,39 @@ Tabs.Movement:AddToggle("SpinbotToggle", {
     Default = false,
     Callback = function(value)
         movementConfig.spinbotEnabled = value
-        Library:Notify({
-            Title = "🌀 Spinbot",
-            Content = value and "✅ Ativado!" or "❌ Desativado!",
-            Duration = 1.5
-        })
+        Library:Notify({ Title = "🌀 Spinbot", Content = value and "✅ Ativado!" or "❌ Desativado!", Duration = 1.5 })
     end
 })
 
 Tabs.Movement:AddSlider("SpinSpeedSlider", {
     Title = "⚡ Velocidade do Giro",
-    Description = "Quão rápido o personagem gira (1 = lento, 100 = insano)",
-    Default = 30,
-    Min = 1,
-    Max = 100,
-    Rounding = 1,
-    Callback = function(value)
-        movementConfig.spinSpeed = value
-    end
+    Default = 30, Min = 1, Max = 100, Rounding = 1,
+    Callback = function(value) movementConfig.spinSpeed = value end
 })
 
 Tabs.Movement:AddDropdown("SpinModeDropdown", {
     Title = "🎯 Modo do Spin",
-    Description = "Direção do giro",
     Values = {"Horizontal", "Vertical", "Random"},
     Default = 1,
-    Callback = function(value)
-        movementConfig.spinMode = value
-    end
+    Callback = function(value) movementConfig.spinMode = value end
 })
 
 Tabs.Movement:AddDropdown("SpinTargetDropdown", {
     Title = "🦴 Parte que Gira",
-    Description = "Qual parte do corpo gira (Root = corpo todo)",
     Values = {"HumanoidRootPart", "UpperTorso", "Head"},
     Default = 1,
-    Callback = function(value)
-        movementConfig.spinTarget = value
-    end
+    Callback = function(value) movementConfig.spinTarget = value end
 })
 
 Tabs.Movement:AddToggle("SpinJitterToggle", {
-    Title = "📳 Tremida Aleatória (Jitter)",
-    Description = "Adiciona um tremor aleatório ao giro (mais 'quebrado')",
+    Title = "📳 Tremida Aleatória",
     Default = false,
-    Callback = function(value)
-        movementConfig.randomJitter = value
-    end
+    Callback = function(value) movementConfig.randomJitter = value end
 })
-
-Tabs.Movement:AddParagraph({
-    Title = "⚠️ Aviso (Spinbot)",
-    Content = "Spinbot pode te fazer tomar kick em alguns jogos.\nSe o jogo detectar, diminua a velocidade ou desligue.\n\nUse por sua conta e risco."
-})
-
--- SPEED HACK
 
 Tabs.Movement:AddParagraph({
     Title = "⚡ Speed Hack",
-    Content = "Aumenta a velocidade de caminhada do seu personagem.\n\n⚠️ Velocidades muito altas podem te fazer tomar kick em jogos com anti-cheat."
+    Content = "Aumenta a velocidade de caminhada."
 })
 
 Tabs.Movement:AddToggle("SpeedToggle", {
@@ -1050,140 +943,128 @@ Tabs.Movement:AddToggle("SpeedToggle", {
     Default = false,
     Callback = function(value)
         movementConfig.speedEnabled = value
-        Library:Notify({
-            Title = "⚡ Speed Hack",
-            Content = value and "✅ Ativado!" or "❌ Desativado!",
-            Duration = 1.5
-        })
+        Library:Notify({ Title = "⚡ Speed Hack", Content = value and "✅ Ativado!" or "❌ Desativado!", Duration = 1.5 })
     end
 })
 
 Tabs.Movement:AddSlider("SpeedSlider", {
     Title = "🏃 Velocidade (0-100)",
-    Description = "Velocidade de caminhada (0 = parado, 100 = insano)",
-    Default = 16,
-    Min = 0,
-    Max = 100,
-    Rounding = 1,
-    Callback = function(value)
-        movementConfig.speedValue = value
-    end
+    Default = 16, Min = 0, Max = 100, Rounding = 1,
+    Callback = function(value) movementConfig.speedValue = value end
 })
 
 Tabs.Movement:AddDropdown("SpeedModeDropdown", {
     Title = "🎯 Modo do Speed",
-    Description = "Normal = sempre ativo, Shift = segurar tecla, Always = sempre",
     Values = {"Normal", "Shift", "Always"},
     Default = 1,
-    Callback = function(value)
-        movementConfig.speedMode = value
-    end
+    Callback = function(value) movementConfig.speedMode = value end
 })
 
 local speedBindButton = Tabs.Movement:AddButton({
     Title = "🔑 Tecla do Speed: " .. tostring(movementConfig.speedKey):gsub("Enum.KeyCode.", ""),
-    Description = "Clique para alterar a tecla do Speed",
+    Description = "Clique para alterar",
     Callback = function()
-        Library:Notify({
-            Title = "⌨️ Aguardando tecla...",
-            Content = "Pressione uma tecla.",
-            Duration = 2
-        })
+        Library:Notify({ Title = "⌨️ Aguardando tecla...", Content = "Pressione uma tecla.", Duration = 2 })
         local input = UserInputService.InputBegan:Wait()
         if input then
             local key = input.KeyCode
             if key ~= Enum.KeyCode.Unknown then
                 movementConfig.speedKey = key
                 speedBindButton:SetTitle("🔑 Tecla do Speed: " .. tostring(key):gsub("Enum.KeyCode.", ""))
-                Library:Notify({
-                    Title = "✅ Tecla alterada!",
-                    Content = "Speed agora usa: " .. tostring(key):gsub("Enum.KeyCode.", ""),
-                    Duration = 2
-                })
             end
         end
     end
 })
 
+-- FLY
 Tabs.Movement:AddParagraph({
-    Title = "⚠️ Aviso (Speed)",
-    Content = "Speed Hack pode te fazer tomar kick em alguns jogos.\nSe o jogo detectar, diminua a velocidade ou desligue.\n\nUse por sua conta e risco."
+    Title = "✈️ Fly (Voar)",
+    Content = "Voa com W/A/S/D + Space (subir) / Shift (descer).\n⚠️ Alguns anti-cheats detectam."
+})
+
+Tabs.Movement:AddToggle("FlyToggle", {
+    Title = "✈️ Ativar Fly",
+    Description = "Liga/desliga o modo de voo",
+    Default = false,
+    Callback = function(value)
+        flyConfig.enabled = value
+        Library:Notify({ Title = "✈️ Fly", Content = value and "✅ Ativado! Use W/A/S/D" or "❌ Desativado!", Duration = 2 })
+    end
+})
+
+Tabs.Movement:AddSlider("FlySpeed", {
+    Title = "💨 Velocidade do Voo",
+    Description = "Quão rápido você voa",
+    Default = 60, Min = 10, Max = 200, Rounding = 1,
+    Callback = function(value) flyConfig.speed = value end
+})
+
+local flyBindButton = Tabs.Movement:AddButton({
+    Title = "🔑 Tecla do Fly: " .. tostring(flyConfig.holdKey):gsub("Enum.KeyCode.", ""),
+    Description = "Clique para trocar a tecla de atalho",
+    Callback = function()
+        Library:Notify({ Title = "⌨️ Aguardando tecla...", Content = "Pressione uma tecla.", Duration = 2 })
+        local input = UserInputService.InputBegan:Wait()
+        if input and input.KeyCode ~= Enum.KeyCode.Unknown then
+            flyConfig.holdKey = input.KeyCode
+            flyBindButton:SetTitle("🔑 Tecla do Fly: " .. tostring(input.KeyCode):gsub("Enum.KeyCode.", ""))
+            Library:Notify({ Title = "✅ Tecla alterada!", Content = "Fly agora usa: " .. tostring(input.KeyCode):gsub("Enum.KeyCode.", ""), Duration = 2 })
+        end
+    end
 })
 
 -- ============================================
--- 5. PERFORMANCE TAB (FPS BOOST)
+-- 5. PERFORMANCE TAB
 -- ============================================
 
 Tabs.Performance:AddParagraph({
     Title = "🚀 FPS Boost",
-    Content = "Otimiza o jogo para melhorar o FPS, especialmente útil quando o ESP está ativo.\n\n⚠️ Alguns efeitos visuais serão desativados enquanto estiver ligado.\nAo desligar, as configurações voltam ao normal."
+    Content = "Otimiza o jogo para melhorar o FPS."
 })
 
 Tabs.Performance:AddToggle("FPSBoostToggle", {
     Title = "⚡ FPS Boost",
-    Description = "Ativa/Desativa o boost de FPS (principal)",
     Default = false,
     Callback = function(value)
         fpsConfig.enabled = value
-        if not value then
-            RestoreFPSBoost()
-        end
-        Library:Notify({
-            Title = "⚡ FPS Boost",
-            Content = value and "✅ Ativado!" or "❌ Desativado!",
-            Duration = 1.5
-        })
+        if not value then RestoreFPSBoost() end
+        Library:Notify({ Title = "⚡ FPS Boost", Content = value and "✅ Ativado!" or "❌ Desativado!", Duration = 1.5 })
     end
 })
 
 Tabs.Performance:AddToggle("FPSLowGraphics", {
     Title = "🎨 Baixa Qualidade Gráfica",
-    Description = "Reduz a qualidade dos gráficos ao mínimo",
     Default = true,
-    Callback = function(value)
-        fpsConfig.lowGraphics = value
-    end
+    Callback = function(value) fpsConfig.lowGraphics = value end
 })
 
 Tabs.Performance:AddToggle("FPSNoEffects", {
     Title = "✨ Remover Efeitos",
-    Description = "Remove efeitos pós-processamento, atmosfera e céu",
     Default = true,
-    Callback = function(value)
-        fpsConfig.noEffects = value
-    end
+    Callback = function(value) fpsConfig.noEffects = value end
 })
 
 Tabs.Performance:AddToggle("FPSNoShadows", {
     Title = "🌑 Remover Sombras",
-    Description = "Desativa todas as sombras do mapa",
     Default = true,
-    Callback = function(value)
-        fpsConfig.noShadows = value
-    end
+    Callback = function(value) fpsConfig.noShadows = value end
 })
 
 Tabs.Performance:AddToggle("FPSNoTextures", {
     Title = "🖼️ Remover Texturas",
-    Description = "Remove texturas e decals (mais FPS, mas feio)",
     Default = false,
-    Callback = function(value)
-        fpsConfig.noTextures = value
-    end
+    Callback = function(value) fpsConfig.noTextures = value end
 })
 
 Tabs.Performance:AddToggle("FPSLowRenderDistance", {
     Title = "🔭 Reduzir Renderização",
-    Description = "Reduz distância de renderização e qualidade da água",
     Default = true,
-    Callback = function(value)
-        fpsConfig.lowRenderDistance = value
-    end
+    Callback = function(value) fpsConfig.lowRenderDistance = value end
 })
 
 Tabs.Performance:AddParagraph({
     Title = "💡 Dicas",
-    Content = "Se ainda estiver travando com ESP ativo:\n\n1. Diminua a 'Distância Máxima do ESP' na aba ESP (200-300m)\n2. Desative o Skeleton ESP (é o mais pesado)\n3. Desative o Health Bar\n4. Mantenha só Box + Names\n5. Ative FPS Boost com Low Graphics + No Shadows + No Effects"
+    Content = "1. Diminua a Distância do ESP\n2. Desative Skeleton ESP\n3. Ative FPS Boost"
 })
 
 -- ============================================
@@ -1192,7 +1073,6 @@ Tabs.Performance:AddParagraph({
 
 Tabs.Settings:AddButton({
     Title = "💾 Salvar Configurações",
-    Description = "Salva todas as configurações atuais",
     Callback = function()
         SaveManager:Save()
         Library:Notify({ Title = "✅ Salvo!", Content = "Configurações salvas!", Duration = 2 })
@@ -1201,7 +1081,6 @@ Tabs.Settings:AddButton({
 
 Tabs.Settings:AddButton({
     Title = "📂 Carregar Configurações",
-    Description = "Carrega as configurações salvas",
     Callback = function()
         SaveManager:Load()
         Library:Notify({ Title = "✅ Carregado!", Content = "Configurações carregadas!", Duration = 2 })
@@ -1210,20 +1089,16 @@ Tabs.Settings:AddButton({
 
 Tabs.Settings:AddButton({
     Title = "🎨 Gerenciar Interface",
-    Description = "Abre o gerenciador de interface",
-    Callback = function()
-        InterfaceManager:ToggleUI()
-    end
+    Callback = function() InterfaceManager:ToggleUI() end
 })
 
 Tabs.Settings:AddParagraph({
     Title = "⚙️ Informações",
-    Content = "DRAXZS PVP MENU v2.3\n\nDesenvolvido por DRAXZS\nMenu baseado na Fluent UI\n\n🎯 Aimbot com FOV ajustável\n👁️ ESP completo + distância máxima\n🌀 Spinbot na aba Movement\n⚡ Speed Hack na aba Movement\n🚀 FPS Boost na aba Performance\n⚡ Otimizado para PvP"
+    Content = "DRAXZS PVP MENU v2.5\n\n🎯 Aimbot\n👁️ ESP + distância\n🌀 Spinbot\n⚡ Speed Hack\n✈️ Fly\n🚀 FPS Boost"
 })
 
 Tabs.Settings:AddButton({
     Title = "❌ Fechar Menu",
-    Description = "Fecha completamente o menu",
     Callback = function()
         Window:Close()
         Library:Notify({ Title = "👋 Até logo!", Content = "Pressione Insert para reabrir.", Duration = 3 })
@@ -1236,24 +1111,33 @@ Tabs.Settings:AddButton({
 
 SaveManager:SetLibrary(Library)
 InterfaceManager:SetLibrary(Library)
-
 SaveManager:IgnoreThemeSettings()
 SaveManager:SetIgnoreIndexes({})
-
 InterfaceManager:SetFolder("DRAXZS_PVP")
 SaveManager:SetFolder("DRAXZS_PVP/saves")
-
 InterfaceManager:BuildInterfaceSection(Tabs.Settings)
 SaveManager:BuildConfigSection(Tabs.Settings)
 
 -- ============================================
--- ABRIR/FECHAR MENU (INSERT)
+-- ATALHOS GLOBAIS (INSERT + FLY KEY)
 -- ============================================
 
 UserInputService.InputBegan:Connect(function(input, processed)
     if processed then return end
+    
+    -- Abrir/Fechar menu
     if input.KeyCode == Enum.KeyCode.Insert then
         Window:Toggle()
+    end
+    
+    -- Atalho do Fly (G por padrão)
+    if input.KeyCode == flyConfig.holdKey then
+        flyConfig.enabled = not flyConfig.enabled
+        Library:Notify({
+            Title = "✈️ Fly",
+            Content = flyConfig.enabled and "✅ Ativado!" or "❌ Desativado!",
+            Duration = 1.5
+        })
     end
 end)
 
@@ -1262,18 +1146,16 @@ end)
 -- ============================================
 
 Library:Notify({
-    Title = "⚡ DRAXZS PVP MENU V2.3 ⚡",
-    Content = "Carregado com sucesso!\nPressione Insert para abrir.",
+    Title = "⚡ DRAXZS PVP MENU V2.5 ⚡",
+    Content = "Carregado com sucesso!\nInsert = abrir | G = Fly",
     Duration = 4
 })
 
 print("====================================")
-print("⚡ DRAXZS PVP MENU V2.3 ⚡")
+print("⚡ DRAXZS PVP MENU V2.5 ⚡")
 print("📌 Insert - Abrir/Fechar menu")
-print("📌 Aimbot com FOV ajustável")
-print("📌 Box vermelha | Health bar lateral")
-print("📌 ESP com distância máxima configurável")
-print("📌 Spinbot na aba Movement")
-print("📌 Speed Hack na aba Movement")
-print("📌 FPS Boost na aba Performance")
+print("📌 G - Ativar/Desativar Fly")
+print("📌 Aimbot + ESP")
+print("📌 Spinbot + Speed")
+print("📌 FPS Boost")
 print("====================================")
